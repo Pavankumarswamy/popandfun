@@ -8,9 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Razorpay credentials - WARNING: Exposed in frontend (security risk)
-const RAZORPAY_KEY_ID = 'rzp_live_HJl9NwyBSY9rwV';
-const RAZORPAY_KEY_SECRET = '1FlerafMmqHMw466ccsDxrhp';
+// Backend API endpoint - MUST be deployed on your server
+const API_ENDPOINT = 'https://popandfun.gnritservices.com/api';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart, getTotalPrice } = useCart();
@@ -34,54 +33,36 @@ const Cart = () => {
       // Generate order ID
       const orderId = `PF${Date.now()}`;
       const totalAmount = getTotalPrice();
-      const amountInPaise = totalAmount * 100;
 
-      // Step 1: Create Razorpay Payment Link
-      const authHeader = 'Basic ' + btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
-      
-      const paymentLinkResponse = await fetch('https://api.razorpay.com/v1/payment_links', {
+      // Call YOUR backend API to create payment link
+      const response = await fetch(`${API_ENDPOINT}/create-payment-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': authHeader,
         },
         body: JSON.stringify({
-          amount: amountInPaise,
-          currency: 'INR',
-          description: `Order ${orderId} - Pop and Fun`,
-          reference_id: orderId,
-          customer: {
-            name: customerName,
-          },
-          notify: {
-            sms: false,
-            email: false,
-          },
-          reminder_enable: false,
-          notes: {
-            order_id: orderId,
-            customer_name: customerName,
-            items: JSON.stringify(cart.map(i => ({
-              id: i.id,
-              title: i.title,
-              qty: i.cartQuantity,
-              price: i.offerPrice,
-              color: i.selectedColor,
-            }))),
-          },
+          amount: totalAmount,
+          customerName: customerName,
+          orderId: orderId,
+          items: cart.map(i => ({
+            id: i.id,
+            title: i.title,
+            qty: i.cartQuantity,
+            price: i.offerPrice,
+            color: i.selectedColor,
+          })),
         }),
       });
 
-      if (!paymentLinkResponse.ok) {
-        const errorText = await paymentLinkResponse.text();
-        console.error('Razorpay Error:', errorText);
-        throw new Error('Failed to create payment link. Please try again.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Server error' }));
+        throw new Error(errorData.error || 'Failed to create payment link. Please ensure backend server is running.');
       }
 
-      const paymentData = await paymentLinkResponse.json();
-      const paymentLink = paymentData.short_url;
+      const data = await response.json();
+      const paymentLink = data.paymentLink;
 
-      // Step 2: Format order details for WhatsApp
+      // Format order details for WhatsApp
       const orderDetails = cart
         .map((item) =>
           `${item.title}${item.selectedColor ? ` (${item.selectedColor})` : ''} x ${item.cartQuantity} = ₹${item.offerPrice * item.cartQuantity}`
