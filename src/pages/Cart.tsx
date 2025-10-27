@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
-const RZP_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID as string;
-const RZP_KEY_SECRET = import.meta.env.VITE_RAZORPAY_KEY_SECRET as string;
+const RZP_KEY_ID = 'rzp_live_HJl9NwyBSY9rwV';
+const RZP_KEY_SECRET = '1FlerafMmqHMw466ccsDxrhp';
 
 async function createRazorpayOrder(amountInPaise: number, receipt: string, notes: Record<string, any>) {
   const res = await fetch('https://api.razorpay.com/v1/orders', {
