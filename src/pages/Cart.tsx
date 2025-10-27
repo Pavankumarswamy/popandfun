@@ -8,16 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Razorpay configuration
-const RAZORPAY_KEY_ID = 'rzp_live_HJl9NwyBSY9rwV';
-
-// Declare Razorpay interface for TypeScript
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart, getTotalPrice } = useCart();
   const [customerName, setCustomerName] = useState('');
@@ -34,84 +24,33 @@ const Cart = () => {
       return;
     }
 
-    if (!window.Razorpay) {
-      toast.error('Payment system not loaded. Please refresh the page.');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    // Generate order ID
-    const orderId = `PF${Date.now()}`;
-    const totalAmount = getTotalPrice() * 100; // Convert to paise
-
-    // Format order details
-    const orderItems = cart
-      .map((item) => 
-        `${item.title}${item.selectedColor ? ` (${item.selectedColor})` : ''} x ${item.cartQuantity}`
-      )
-      .join(', ');
-
-    // Razorpay payment options
-    const options = {
-      key: RAZORPAY_KEY_ID,
-      amount: totalAmount,
-      currency: 'INR',
-      name: 'Pop and Fun',
-      description: orderItems,
-      order_id: orderId,
-      prefill: {
-        name: customerName,
-      },
-      notes: {
-        order_id: orderId,
-        items: JSON.stringify(cart.map((i) => ({
-          id: i.id,
-          title: i.title,
-          qty: i.cartQuantity,
-          price: i.offerPrice,
-          color: i.selectedColor,
-        }))),
-      },
-      theme: {
-        color: '#9b87f5',
-      },
-      handler: function (response: any) {
-        // Payment successful
-        const paymentId = response.razorpay_payment_id;
-        
-        // Format order details for WhatsApp
-        const orderDetails = cart
-          .map((item) => 
-            `${item.title}${item.selectedColor ? ` (${item.selectedColor})` : ''} x ${item.cartQuantity} = ₹${item.offerPrice * item.cartQuantity}`
-          )
-          .join('%0A');
-
-        // Send confirmation to WhatsApp
-        const whatsappMessage = `*New Order from Pop and Fun*%0A%0A*Customer Name:* ${customerName}%0A%0A*Order Details:*%0A${orderDetails}%0A%0A*Total Amount:* ₹${getTotalPrice()}%0A*Order ID:* ${orderId}%0A*Payment ID:* ${paymentId}%0A*Status:* ✅ PAID%0A%0A*Timestamp:* ${new Date().toLocaleString()}`;
-
-        const whatsappUrl = `https://wa.me/918639122823?text=${whatsappMessage}`;
-        window.open(whatsappUrl, '_blank');
-
-        toast.success('Payment successful! Order confirmation sent.');
-        clearCart();
-        setCustomerName('');
-        setIsProcessing(false);
-      },
-      modal: {
-        ondismiss: function () {
-          setIsProcessing(false);
-          toast.info('Payment cancelled');
-        },
-      },
-    };
-
     try {
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error) {
-      console.error('Razorpay error:', error);
-      toast.error('Failed to open payment window');
+      setIsProcessing(true);
+
+      // Generate order ID directly on the page
+      const orderId = `PF${Date.now()}`;
+      const totalAmount = getTotalPrice();
+
+      // Format order details for WhatsApp
+      const orderDetails = cart
+        .map((item) =>
+          `${item.title}${item.selectedColor ? ` (${item.selectedColor})` : ''} x ${item.cartQuantity} = ₹${item.offerPrice * item.cartQuantity}`
+        )
+        .join('%0A');
+
+      // Create WhatsApp message with order details
+      const whatsappMessage = `*New Order from Pop and Fun*%0A%0A*Customer Name:* ${customerName}%0A%0A*Order Details:*%0A${orderDetails}%0A%0A*Total Amount:* ₹${totalAmount}%0A*Order ID:* ${orderId}%0A%0A*Status:* Payment Pending%0A%0A*Timestamp:* ${new Date().toLocaleString()}%0A%0APlease send payment details to confirm the order.`;
+
+      const whatsappUrl = `https://wa.me/918639122823?text=${whatsappMessage}`;
+      window.open(whatsappUrl, '_blank');
+
+      toast.success('Order sent via WhatsApp!');
+      clearCart();
+      setCustomerName('');
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast.error('Failed to send order. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -243,11 +182,11 @@ const Cart = () => {
                 onClick={handleCheckout}
                 disabled={isProcessing}
               >
-                {isProcessing ? 'Opening payment...' : 'Proceed to Payment'}
+                {isProcessing ? 'Sending order...' : 'Order via WhatsApp'}
               </Button>
 
               <p className="text-xs text-center text-muted-foreground">
-                Secure payment via Razorpay • Order confirmation sent to WhatsApp
+                Order details with payment instructions sent via WhatsApp
               </p>
             </CardContent>
           </Card>
